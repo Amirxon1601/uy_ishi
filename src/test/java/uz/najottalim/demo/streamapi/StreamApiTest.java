@@ -1,13 +1,10 @@
 package uz.najottalim.demo.streamapi;
 
 import java.time.LocalDate;
-import java.time.Month;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import org.aspectj.weaver.ast.Or;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -155,14 +152,13 @@ public class StreamApiTest {
     public void exercise9() {
         double expected = solution9();
 
-        long ans = (long) orderRepo.findAll()
-                .stream().filter(order -> order.getOrderDate().isEqual(LocalDate.of(2021, 3, 15)))
-                .map(order -> order.getProducts())
-                .flatMap(products -> products.stream())
-                .mapToDouble(product -> product.getPrice())
-
+        double result = orderRepo.findAll()
+                .stream()
+                .filter(product -> product.getOrderDate().isEqual(LocalDate.of(2021, 3, 15)))
+                .flatMap(product -> product.getProducts().stream())
+                .mapToDouble(Product::getPrice)
                 .average().getAsDouble();
-        Assertions.assertEquals(expected, ans);
+        Assertions.assertEquals(expected, result);
     }
 
 
@@ -177,6 +173,14 @@ public class StreamApiTest {
             "Feb 2021 zakaz qilingan produktlar narxini hisoblang")
     public void exercise8() {
         double expected = solution8();
+        double result = orderRepo.findAll()
+                .stream()
+                .filter(product -> !product.getOrderDate().isBefore(LocalDate.of(2021, 2, 1)))
+                .filter(product -> product.getOrderDate().isBefore(LocalDate.of(2021, 3, 1)))
+                .flatMap(product -> product.getProducts().stream())
+                .mapToDouble(Product::getPrice)
+                .sum();
+        Assertions.assertEquals(expected, result);
         // yordam: birinchi shu sanadagi hamma orderni olib
         // keyn har bir orderni produktlarini listga yiging
         // keyn narximi stream sum bilan hisoblang
@@ -188,6 +192,12 @@ public class StreamApiTest {
             "\"Books\" category bo'lgan produktlarni summary statistikasini oling")
     public void exercise10() {
         DoubleSummaryStatistics expected = solution10();
+        DoubleSummaryStatistics statistics = productRepo.findAll()
+                .stream()
+                .filter(product -> product.getCategory().equalsIgnoreCase("Books"))
+                .mapToDouble(Product::getPrice)
+                .summaryStatistics();
+        Assertions.assertEquals(expected, statistics);
         // yordam: produktni kategoriya boyicha filter qiling
         // keyn streamdan DoubleStreamga o'ting va
         // summary statisticsni chiqaring
@@ -199,6 +209,15 @@ public class StreamApiTest {
             "15-Mar-2021 zakaz qilingan produktlarni oling")
     public void exercise7() {
         List<Product> expected = solution7();
+        List<Product> result = orderRepo.findAll()
+                .stream()
+                .filter(product -> product.getOrderDate().isEqual(LocalDate.of(2021, 3, 15)))
+                .peek(product -> System.out.println(product))
+                .flatMap(product -> product.getProducts().stream())
+                .distinct()
+                .collect(Collectors.toList());
+        Assertions.assertEquals(expected, result);
+
         // yordam (murakkamroq): birinchi shu sanadagi orderlarni olin
         // keyn har bir orderga tegishli produktni
         // olish kerak
@@ -209,13 +228,15 @@ public class StreamApiTest {
     @Test
     @DisplayName("xamma 2021 zakaz qilingan" +
             "zakazlarni eng kop zakaz qilgan 10 ta customerni chiqaring")
-    public void exercise4_3() {
+    public List<Customer> exercise4_3() {
         List<Customer> expected = solution4_3();
+
         // yordam (murakkamroq):
         // birinchi xamma 2021 zakazlarni olish kerak
         // keyin map ochib xar bitta zakaz uchun produktlar
         // sonini sanash kerak keyn ularni count boyicha saralb
         // 10 ta eng counti kattasini chiqarish kerak
+        return expected;
     }
 
 
@@ -261,14 +282,13 @@ public class StreamApiTest {
         Assertions.assertEquals(expected, ourSolution);
     }
 
-
     @Test
     @DisplayName("Eng arzon category \"Books\" bo'lgan produktni oling")
     public void exercise5() {
         Optional<Product> expected = solution5();
         Optional<Product> result = productRepo.findAll()
                 .stream()
-                .filter(p -> p.getCategory().equalsIgnoreCase("Books"))
+                .filter(product -> product.getCategory().equalsIgnoreCase("Books"))
                 .sorted(Comparator.comparing(Product::getPrice))
                 .findFirst();
         Assertions.assertEquals(expected, result);
