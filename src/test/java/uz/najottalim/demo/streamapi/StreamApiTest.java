@@ -67,16 +67,22 @@ public class StreamApiTest {
     public void exercise2() {
         List<Order> expected = solution2();
         // hamma orderlar
-        List<Order> orders = orderRepo.findAll();
-        //yordam 1: har bitta zakaz o'z ichiga oladigan Produktlar listini olish
-        orders.forEach(order -> {
-            Set<Product> products = order.getProducts();
-        });
+        List<Order> orders = orderRepo.findAll().stream()
+                .filter(order -> {
+                    Set<Product> products = order.getProducts();
+                    for (Product product : products){
+                        if(product.getCategory().equalsIgnoreCase("Baby")){
+                            return true;
+                        }
+                    }
+                    return false;
+                }).collect(Collectors.toList());
+        //yordam 1: har bitta zakaz o'z ichiga oladigan Produktlar listini olis
         //yordam 2: demak har bitta Orderni filter qilib, keyin har bitta
         // orderga tegishli produktlarni olib agar shu Produktni setni
         // ichidagi istalgan produktni kategorisi "Baby" bo'sa unda uni filterdan o'tqizab
         // qolganlarini tashlab yuborish kerak
-//        List<Order> yourSolution = orderRepo.findAll().stream().filter() ...
+//       List<Order> yourSolution = orderRepo.findAll().stream().filter(order -> order.getProducts().equals("Baby"));
 
 
 //         pastdagi qator kommentdan ochilsin va method run qilinsin
@@ -91,11 +97,15 @@ public class StreamApiTest {
         List<Product> expected = solution3();
 //         yordam: filter qilgandan song yangi produkt oching, chunki 10% diskount bilan
 //        produkt qaytarilishi kerak
-//        List<Product> yourSolution = productRepo.findAll().stream().filter()...
+        List<Product> mySolution = productRepo.findAll()
+                .stream().
+                filter(product -> product.getCategory().equalsIgnoreCase("Toys"))
+                .peek(product -> product.setPrice(product.getPrice() * 0.9))
+                .collect(Collectors.toList());
 
 //         pastdagi qator kommentdan ochilsin va method run qilinsin
 //         yourSolution list yaratilgandan keyin
-//        Assertions.assertEquals(expected, mySolution);
+        Assertions.assertEquals(expected, mySolution);
     }
 
 
@@ -105,10 +115,20 @@ public class StreamApiTest {
             "Orderlarni chiqaring")
     public void exercise4_1() {
         List<Order> expected = solution4_1();
-        // yordam:
-        // shu oraliqdagi zakazlarni olib
-        // zakaz qilgan customerni tier boyicha filter qilib
-        // chiqarish kerak
+        List<Order> mySolution = orderRepo.findAll().stream()
+                .filter(order -> {
+                    LocalDate orderdate = order.getOrderDate();
+                    if (orderdate.getYear() == 2021 && orderdate.getMonthValue() >= 2 && orderdate.getMonthValue() <= 4) {
+                        if (orderdate.getMonthValue() == 4) {
+                            return orderdate.getDayOfMonth() == 1;
+                        }
+                        return true;
+                    }
+                    return false;
+
+                }).filter(order -> order.getCustomer().getTier() == 2)
+                .collect(Collectors.toList());
+        Assertions.assertEquals(expected, mySolution);
     }
 
     //4 chi vazifa
@@ -117,6 +137,12 @@ public class StreamApiTest {
             "Orderlarni chiqaring")
     public void exercise4_2() {
         List<String> expected = solution4_2();
+        List<String> mySolution = orderRepo.findAll().stream()
+                .filter(order -> order.getStatus().equalsIgnoreCase("NEW"))
+                .map(order -> order.getCustomer().getName())
+                .collect(Collectors.toList());
+
+        Assertions.assertEquals(expected, mySolution);
         // yordam:
         // birinchi filter keyn map order.getCustomer qilib
         // customerlarni olsa boladi
@@ -128,10 +154,22 @@ public class StreamApiTest {
             "15-Mar-2021 zakaz qilingan produktlarni o'rtacha narxini hisoblang")
     public void exercise9() {
         double expected = solution9();
+
+        long ans = (long) orderRepo.findAll()
+                .stream().filter(order -> order.getOrderDate().isEqual(LocalDate.of(2021, 3, 15)))
+                .map(order -> order.getProducts())
+                .flatMap(products -> products.stream())
+                .mapToDouble(product -> product.getPrice())
+
+                .average().getAsDouble();
+        Assertions.assertEquals(expected, ans);
+    }
+
+
         // yordam: birinchi shu sanadagi hamma orderni olib
         // keyn har bir orderni produktlarini listga yiging
         // keyn narximi stream average bilan hisoblang
-    }
+
 
     //6 chi vazifa
     @Test
@@ -190,6 +228,16 @@ public class StreamApiTest {
             "01-Feb-2021 va 01-Apr-2021 oralig'ida zakaz qilingan produktlarni oling")
     public void exercise4() {
         List<Product> expected = solution4();
+        List<Product> result = orderRepo.findAll()
+
+        .stream()
+                .filter(product -> product.getCustomer().getTier() == 2)
+                .filter(product -> !product.getOrderDate().isBefore(LocalDate.of(2021, 2, 1)))
+                .filter(product -> !product.getOrderDate().isAfter(LocalDate.of(2021, 4, 1)))
+                .flatMap(product -> product.getProducts().stream())
+                .collect(Collectors.toList());
+        Assertions.assertEquals(result.size(), expected.size());
+        expected.forEach(product -> Assertions.assertTrue(result.contains(expected)));
 
     }
 
@@ -205,6 +253,11 @@ public class StreamApiTest {
     @DisplayName("Obtain a list of product with category = \"Books\" and price > 100 (using BiPredicate for filter)")
     public void exercise1b() {
         List<Product> expected = solution1b();
+        List<Product> ourSolution = productRepo.findAll().stream()
+                .filter(product -> product.getCategory().equalsIgnoreCase("Books"))
+                .filter(product -> product.getPrice() > 100)
+                .collect(Collectors.toList());
+        Assertions.assertEquals(expected, ourSolution);
     }
 
 
@@ -227,6 +280,12 @@ public class StreamApiTest {
             "Eng oxiri zakaz qilingan 3 zakazni oling")
     public void exercise6() {
         List<Order> expected = solution6();
+        List<Order> result = orderRepo.findAll()
+                .stream()
+                .sorted(Comparator.comparing(Order::getOrderDate).reversed())
+                .limit(3)
+                .collect(Collectors.toList());
+        Assertions.assertEquals(result, expected);
     }
 
 
@@ -265,6 +324,12 @@ public class StreamApiTest {
             "order idni order produkt kountiga mapini oling")
     public void exercise11() {
         Map<Long, Integer> expected = solution11();
+        Map<Long, Integer> result = orderRepo.findAll()
+                .stream()
+                .collect(Collectors.toMap(
+                                Order::getId,
+                                order -> order.getProducts().size()));
+        Assertions.assertEquals(expected, result);
     }
 
 
@@ -273,6 +338,10 @@ public class StreamApiTest {
             "Customerni orderlarini mapini oling")
     public void exercise12() {
         Map<Customer, List<Order>> expected = solution12();
+        Map<Customer, List<Order>> result = orderRepo.findAll()
+                .stream()
+                .collect(Collectors.groupingBy(Order::getCustomer));
+        Assertions.assertEquals(expected, result);
     }
 
 
@@ -281,6 +350,14 @@ public class StreamApiTest {
             "Customer idlarini order idlarga mapini oling")
     public void exercise12a() {
         HashMap<Long, List<Long>> expected = solution12a();
+        HashMap<Long, List<Long>> result = orderRepo.findAll()
+                .stream()
+                .collect(
+                        Collectors.groupingBy(
+                                order -> order.getCustomer().getId(),
+                                HashMap::new,
+                                Collectors.mapping(Order::getId, Collectors.toList())));
+        Assertions.assertEquals(expected, result);
     }
 
 
@@ -289,6 +366,15 @@ public class StreamApiTest {
             "Orderlarni umumiy narxga mapini oling")
     public void exercise13() {
         Map<Order, Double> expected = solution13();
+        Map<Order, Double> result = orderRepo.findAll()
+                .stream()
+                .collect(
+                        Collectors.toMap(
+                                Function.identity(),
+                                order -> order.getProducts().stream()
+                                        .mapToDouble(Product::getPrice).sum())
+                );
+        Assertions.assertEquals(expected, result);
     }
 
 
@@ -297,6 +383,7 @@ public class StreamApiTest {
             "Orderlarni umumiy narxga mapini oling (reduce bilan)")
     public void exercise13a() {
         Map<Long, Double> expected = solution13a();
+
     }
 
     @Test
@@ -304,6 +391,14 @@ public class StreamApiTest {
             "Produkt nomini categoriyaga boglab chiqaring")
     public void exercise14() {
         Map<String, List<String>> expected = solution14();
+        Map<String, List<String>> result = productRepo.findAll()
+                .stream()
+                .collect(
+                        Collectors.groupingBy(
+                                Product::getCategory,
+                                Collectors.mapping(Product::getName, Collectors.toList()))
+                );
+        Assertions.assertEquals(expected, result);
     }
 
 
@@ -312,6 +407,14 @@ public class StreamApiTest {
             "har bitta Categoriyaga to'g'ri keladigan eng qimmat Productni oling")
     void exercise15() {
         Map<String, Optional<Product>> expected = solution15();
+        Map<String, Optional<Product>> result = productRepo.findAll()
+                .stream()
+                .collect(
+                        Collectors.groupingBy(
+                                Product::getCategory,
+                                Collectors.maxBy(Comparator.comparing(Product::getPrice)))
+                );
+        Assertions.assertEquals(result, expected);
 //		result.forEach((k,v) -> {
 //			log.info("key=" + k + ", value=" + v.get());
 //		});
@@ -324,6 +427,7 @@ public class StreamApiTest {
             "har bitta Categoriyaga to'g'ri keladigan eng qimmat Productni (nomini) oling")
     void exercise15a() {
         Map<String, String> expected = solution15a();
+
     }
 
     private List<Product> solution1() {
